@@ -1,0 +1,64 @@
+{
+  "name": "calorie-snap",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "proxy": "node server/proxy.mjs",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:5173 && NODE_ENV=development electron .\"",
+    "electron:build": "BUILD_TARGET=electron npm run build && electron-builder --mac",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "android": "npm run build && npx cap sync android && npx cap open android",
+    "cap:sync": "npm run build && npx cap sync"
+  },
+  "build": {
+    "appId": "com.wjl.caloriesnap",
+    "productName": "Calorie Snap",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.healthcare-fitness",
+      "icon": "public/icons/icon-512x512.png",
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "Calorie Snap"
+    }
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "lucide-react": "^1.22.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^10.0.3",
+    "electron": "^42.5.1",
+    "electron-builder": "^26.15.3",
+    "express": "^5.2.1",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0",
+    "wait-on": "^9.0.10",
+    "workbox-window": "^7.4.1"
+  }
+}

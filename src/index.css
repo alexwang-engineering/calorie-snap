@@ -1,0 +1,59 @@
+:root {
+  --ink: #111c18;
+  --ink-2: #2c3c35;
+  --muted: #697870;
+  --line: #ddd6cb;
+  --line-2: #e8e2d8;
+  --paper: #ffffff;
+  --page: #f0ece4;
+  --green: #0c6035;
+  --green-vivid: #19c068;
+  --green-light: #ddf2e8;
+  --green-mid: #0f8044;
+  --coral: #e8402a;
+  --coral-light: #fdecea;
+  --amber: #b86e10;
+  --radius: 12px;
+  --shadow-sm: 0 1px 3px rgba(10,20,15,0.07), 0 4px 14px rgba(10,20,15,0.08);
+  --shadow-md: 0 2px 8px rgba(10,20,15,0.07), 0 12px 32px rgba(10,20,15,0.12);
+  --shadow-lg: 0 4px 16px rgba(10,20,15,0.08), 0 24px 56px rgba(10,20,15,0.16);
+
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100svh;
+  margin: 0;
+}
+
+button,
+input {
+  letter-spacing: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+.file-action:focus-within {
+  outline: 2.5px solid rgba(29, 92, 58, 0.35);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
