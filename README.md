@@ -1,5 +1,7 @@
 # Calorie Snap
 
+> 🚧 **Work in progress** — under active development, not feature-complete. See `handoff.md` for known limitations and next steps. Feedback and review welcome via the open draft PR.
+
 A mobile-first food and calorie tracker built with React, TypeScript, and Vite.
 
 ## What it does
