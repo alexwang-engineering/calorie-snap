@@ -7,10 +7,12 @@ import {
   Flame,
   ImagePlus,
   Loader2,
+  MessageSquareText,
   Pencil,
   QrCode,
   Salad,
   Search,
+  Settings,
   Sparkles,
   Star,
   Trash2,
@@ -20,10 +22,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 import type { LogEntry, MealType, PendingFood } from './types'
+import { DEFAULT_GOALS } from './types'
 import { loadEntries, loadFavorites, saveEntries, saveFavorites } from './services/logService'
+import {
+  GOAL_LABELS,
+  computeGoals,
+  greetingForNow,
+  loadProfile,
+  saveProfile,
+  type UserProfile,
+} from './services/profileService'
 import { FoodConfirmation } from './components/FoodConfirmation'
+import { ProfileSetup } from './components/ProfileSetup'
+import { ProgressRing } from './components/ProgressRing'
 
 const USDA_API_KEY = 'DEMO_KEY'
+
+// In dev, vite proxies /api → 127.0.0.1:5174. The packaged Electron app loads
+// from file://, so requests must target the locally spawned proxy directly.
+const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:5174' : ''
 
 type FoodResult = {
   fdcId: number
@@ -56,6 +73,17 @@ type AiEstimate = {
   carbs: number
   fat: number
   amount: string
+}
+
+type ParsedMealItem = {
+  name: string
+  quantity_description: string
+  estimated_grams: number
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  source: 'open_food_facts' | 'estimated'
 }
 
 type BarcodeDetectorConstructor = new (options?: {
@@ -103,11 +131,16 @@ function numberFromForm(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
-type ActiveMethod = 'photo' | 'barcode' | 'search' | 'manual' | null
+type ActiveMethod = 'photo' | 'barcode' | 'search' | 'manual' | 'describe' | null
+
+// Macro accent colors, Cal AI-style: protein red / carbs amber / fat blue
+const MACRO_COLORS = { protein: '#e5484d', carbs: '#ee9b2e', fat: '#4a7dd6' } as const
 
 function App() {
   const [entries, setEntries]               = useState<LogEntry[]>(loadEntries)
   const [favorites, setFavorites]           = useState<string[]>(loadFavorites)
+  const [profile, setProfile]               = useState<UserProfile | null>(loadProfile)
+  const [editingProfile, setEditingProfile] = useState(false)
   const [activeMeal, setActiveMeal]         = useState<MealType>('lunch')
   const [activeMethod, setActiveMethod]     = useState<ActiveMethod>(null)
   const [pendingFood, setPendingFood]       = useState<PendingFood | null>(null)
@@ -119,6 +152,9 @@ function App() {
   const [cameraOn, setCameraOn]             = useState(false)
   const [isScanning, setIsScanning]         = useState(false)
   const [isAnalyzing, setIsAnalyzing]       = useState(false)
+  const [mealText, setMealText]             = useState('')
+  const [parsedItems, setParsedItems]       = useState<ParsedMealItem[]>([])
+  const [isParsing, setIsParsing]           = useState(false)
   const [foodQuery, setFoodQuery]           = useState('')
   const [foodResults, setFoodResults]       = useState<FoodResult[]>([])
   const [isSearching, setIsSearching]       = useState(false)
@@ -277,8 +313,14 @@ function App() {
     })
   }
 
-  const calorieGoal = 2100
-  const progress    = Math.min(100, Math.round((totals.calories / calorieGoal) * 100))
+  // Personalized targets from the user profile; sensible defaults pre-onboarding
+  const goals       = useMemo(() => (profile ? computeGoals(profile) : DEFAULT_GOALS), [profile])
+  const calorieGoal = goals.calories
+
+  function handleSaveProfile(fields: Omit<UserProfile, 'createdAt' | 'updatedAt'>) {
+    setProfile(saveProfile(fields, profile))
+    setEditingProfile(false)
+  }
 
   const streakInfo = useMemo(() => {
     let hitDays = 0
@@ -293,7 +335,7 @@ function App() {
       }
     }
     return { hitDays, streak }
-  }, [entriesByDate, last7Days])
+  }, [entriesByDate, last7Days, calorieGoal])
 
   // ── Entry CRUD ───────────────────────────────────────────────
   function addEntry(entry: Omit<LogEntry, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -411,7 +453,7 @@ function App() {
         reader.readAsDataURL(file)
       })
       const mediaType = file.type || 'image/jpeg'
-      const response  = await fetch('/api/analyze-food', {
+      const response  = await fetch(`${API_BASE}/api/analyze-food`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ imageBase64: base64, mediaType }),
@@ -435,6 +477,52 @@ function App() {
     } finally {
       setIsAnalyzing(false)
     }
+  }
+
+  // ── AI meal description parsing ──────────────────────────────
+  async function parseMealDescription() {
+    const text = mealText.trim()
+    if (!text) return
+    setIsParsing(true)
+    setParsedItems([])
+    setStatus('')
+    try {
+      const response = await fetch(`${API_BASE}/api/parse-meal`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ text }),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const data = await response.json() as { items?: ParsedMealItem[] }
+      if (!data.items?.length) {
+        setStatus('没有识别出食物。试试更具体的描述，例如"两个鸡蛋和一片吐司"。')
+        return
+      }
+      setParsedItems(data.items)
+    } catch {
+      setStatus('解析失败，请稍后再试，或改用其他录入方式。')
+    } finally {
+      setIsParsing(false)
+    }
+  }
+
+  function addParsedItems() {
+    for (const item of parsedItems) {
+      addEntry({
+        name:     item.name,
+        meal:     activeMeal,
+        // 'photo' renders as "AI 识别" in FoodConfirmation — right label for AI estimates
+        source:   item.source === 'open_food_facts' ? 'openfoodfacts' : 'photo',
+        calories: Math.round(Number(item.calories) || 0),
+        protein:  Math.round(Number(item.protein_g) || 0),
+        carbs:    Math.round(Number(item.carbs_g) || 0),
+        fat:      Math.round(Number(item.fat_g) || 0),
+        amount:   item.quantity_description || undefined,
+      })
+    }
+    setParsedItems([])
+    setMealText('')
+    setActiveMethod(null)
   }
 
   async function scanImage(file: File) {
@@ -504,19 +592,17 @@ function App() {
     stopCamera()
     setPreviewImage('')
     setStatus('')
+    setParsedItems([])
     setActiveMethod(method)
   }
 
-  // ── Macro ratios ─────────────────────────────────────────────
-  const proteinKcal    = totals.protein * 4
-  const carbsKcal      = totals.carbs * 4
-  const fatKcal        = totals.fat * 9
-  const macroKcalTotal = proteinKcal + carbsKcal + fatKcal || 1
-  const macroRatio     = {
-    protein: Math.round(proteinKcal / macroKcalTotal * 100),
-    carbs:   Math.round(carbsKcal   / macroKcalTotal * 100),
-    fat:     Math.round(fatKcal     / macroKcalTotal * 100),
-  }
+  // ── Dashboard data ───────────────────────────────────────────
+  const remaining  = calorieGoal - totals.calories
+  const macroCards = [
+    { key: 'protein', label: '蛋白质', eaten: totals.protein, goal: goals.protein, color: MACRO_COLORS.protein },
+    { key: 'carbs',   label: '碳水',   eaten: totals.carbs,   goal: goals.carbs,   color: MACRO_COLORS.carbs },
+    { key: 'fat',     label: '脂肪',   eaten: totals.fat,     goal: goals.fat,     color: MACRO_COLORS.fat },
+  ]
 
   const hasTrendData = last7Days.some(d => (entriesByDate.get(d) ?? []).length > 0)
 
@@ -524,51 +610,88 @@ function App() {
   return (
     <main className="app-shell">
 
-      {/* ── Dark summary band ── */}
-      <section className="summary-band" aria-label="今日热量总览">
-        <div className="summary-copy">
-          <div className="brand-row">
-            <span className="brand-mark">
-              <Salad size={16} aria-hidden="true" />
-            </span>
-            Calorie Snap
+      {/* ── Onboarding / profile editing ── */}
+      {(profile === null || editingProfile) && (
+        <ProfileSetup
+          profile={profile}
+          onSave={handleSaveProfile}
+          onCancel={profile ? () => setEditingProfile(false) : undefined}
+        />
+      )}
+
+      {/* ── Top bar ── */}
+      <header className="topbar">
+        <div className="topbar-brand">
+          <span className="brand-mark"><Salad size={16} aria-hidden="true" /></span>
+          <div className="topbar-brand-text">
+            <strong>Calorie Snap</strong>
+            <span>{todayLabel}</span>
           </div>
-          <p className="summary-page-label">今天的记录</p>
-          <p className="brand-date">{todayLabel}</p>
+        </div>
+        <div className="topbar-right">
+          <span className="topbar-greeting">{greetingForNow(profile?.name ?? '')}</span>
+          <button
+            type="button"
+            className="topbar-profile"
+            onClick={() => setEditingProfile(true)}
+            aria-label="编辑个人信息与目标"
+          >
+            <Settings size={15} aria-hidden="true" />
+            {profile ? `${GOAL_LABELS[profile.goal].label} · ${calorieGoal} kcal` : '设置目标'}
+          </button>
+        </div>
+      </header>
+
+      {/* ── Dashboard: hero + macro rings ── */}
+      <section className="dashboard" aria-label="今日总览">
+        <div className="hero-card">
+          <div className="hero-main">
+            <span className="hero-label">{remaining >= 0 ? '今天还可以吃' : '今天已超出'}</span>
+            <div className="hero-number-row">
+              <span className={`hero-number${remaining < 0 ? ' hero-number--over' : ''}`}>
+                {Math.abs(remaining)}
+              </span>
+              <span className="hero-unit">kcal</span>
+            </div>
+            <p className="hero-sub">
+              已摄入 <strong>{totals.calories}</strong> / 目标 {calorieGoal} kcal
+              {todayEntries.length === 0 && ' · 从下方添加第一餐'}
+            </p>
+          </div>
+          <ProgressRing
+            progress={totals.calories / calorieGoal}
+            size={148}
+            strokeWidth={12}
+            color="var(--brand, #1d5c3a)"
+          >
+            <Flame size={22} aria-hidden="true" className="hero-ring-icon" />
+            <span className="hero-ring-percent">
+              {Math.min(999, Math.round((totals.calories / calorieGoal) * 100))}%
+            </span>
+          </ProgressRing>
         </div>
 
-        <div className="energy-panel" aria-label="今日摄入">
-          {todayEntries.length === 0 ? (
-            <>
-              <p className="energy-empty-title">今天还没有记录</p>
-              <p className="energy-empty-sub">先添加一餐，热量和营养会在这里更新。</p>
-              <p className="energy-goal-compact">目标 {calorieGoal} kcal</p>
-            </>
-          ) : (
-            <>
-              <span className="panel-label">今日热量</span>
-              <div className="energy-top">
-                <span className="energy-number">{totals.calories}</span>
-                <span className="energy-unit">kcal</span>
-              </div>
-              <p className="energy-goal">目标 {calorieGoal} kcal · 剩余 {Math.max(0, calorieGoal - totals.calories)} kcal</p>
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${progress}%` }} />
-              </div>
-              {totals.calories > 0 && (
-                <div
-                  className="macro-ratio-bar"
-                  aria-label="三大营养素热量占比"
-                  title={`蛋白 ${macroRatio.protein}% · 碳水 ${macroRatio.carbs}% · 脂肪 ${macroRatio.fat}%`}
-                >
-                  <div className="ratio-seg ratio-seg--protein" style={{ width: `${macroRatio.protein}%` }} />
-                  <div className="ratio-seg ratio-seg--carbs"   style={{ width: `${macroRatio.carbs}%` }} />
-                  <div className="ratio-seg ratio-seg--fat"     style={{ width: `${macroRatio.fat}%` }} />
+        <div className="macro-cards">
+          {macroCards.map(m => {
+            const left = m.goal - m.eaten
+            return (
+              <div className="macro-card" key={m.key}>
+                <div className="macro-card-copy">
+                  <span className="macro-card-value">{m.eaten}g</span>
+                  <span className="macro-card-label">{m.label}</span>
+                  <span className="macro-card-left">
+                    {left >= 0 ? `还差 ${left}g` : `超出 ${-left}g`}
+                  </span>
                 </div>
-              )}
-              <p className="energy-macro-line">蛋白 {totals.protein}g · 碳水 {totals.carbs}g · 脂肪 {totals.fat}g</p>
-            </>
-          )}
+                <ProgressRing
+                  progress={m.goal > 0 ? m.eaten / m.goal : 0}
+                  size={62}
+                  strokeWidth={7}
+                  color={m.color}
+                />
+              </div>
+            )
+          })}
         </div>
       </section>
 
@@ -700,6 +823,17 @@ function App() {
                     {activeMethod === null && <span>适合自制餐、外卖或数据库找不到的食物。</span>}
                   </div>
                 </button>
+                <button
+                  type="button"
+                  className={`method-card${activeMethod === 'describe' ? ' method-card--active' : activeMethod !== null ? ' method-card--inactive' : ''}`}
+                  onClick={() => switchMethod(activeMethod === 'describe' ? null : 'describe')}
+                >
+                  <div className="method-card-icon"><MessageSquareText size={18} aria-hidden="true" /></div>
+                  <div className="method-card-text">
+                    <strong>描述餐食</strong>
+                    {activeMethod === null && <span>用一句话描述吃了什么，AI 拆分成多条并估算营养。</span>}
+                  </div>
+                </button>
               </div>
 
               {/* ── Expanded: photo ── */}
@@ -792,7 +926,27 @@ function App() {
                     {isSearching && (
                       <p className="panel-status" style={{ padding: '8px 12px' }}>正在搜索食物数据库...</p>
                     )}
-                    {!isSearching && foodQuery.trim() && foodResults.length === 0 && showResults && (
+                    {/* USDA is English-only — steer Chinese queries to the AI describe flow */}
+                    {!isSearching && /[一-鿿]/.test(foodQuery) && (
+                      <div className="search-cjk-hint">
+                        <p>USDA 数据库只收录英文。中文直接用「描述餐食」，AI 会帮你查营养：</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const q = foodQuery
+                            setFoodQuery('')
+                            setFoodResults([])
+                            setShowResults(false)
+                            switchMethod('describe')
+                            setMealText(q)
+                          }}
+                        >
+                          <MessageSquareText size={14} aria-hidden="true" />
+                          用 AI 解析「{foodQuery.trim().slice(0, 12)}」
+                        </button>
+                      </div>
+                    )}
+                    {!isSearching && foodQuery.trim() && !/[一-鿿]/.test(foodQuery) && foodResults.length === 0 && showResults && (
                       <p className="panel-status" style={{ padding: '8px 12px' }}>
                         没有找到相关食物。试试更简单的关键词，或者手动输入。
                       </p>
@@ -861,23 +1015,65 @@ function App() {
                 </div>
               )}
 
+              {/* ── Expanded: describe meal (AI) ── */}
+              {activeMethod === 'describe' && (
+                <div className="method-expanded">
+                  <textarea
+                    className="meal-describe-input"
+                    placeholder="例如：早餐吃了两个水煮蛋和一片全麦吐司，还喝了一杯牛奶"
+                    rows={3}
+                    value={mealText}
+                    onChange={e => setMealText(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="action-grid">
+                    <button
+                      type="button"
+                      onClick={() => void parseMealDescription()}
+                      disabled={isParsing || !mealText.trim()}
+                    >
+                      <Sparkles size={16} aria-hidden="true" />
+                      {isParsing ? '解析中…' : '解析餐食'}
+                    </button>
+                  </div>
+                  {isParsing && (
+                    <div className="ai-banner ai-banner--loading">
+                      <Sparkles size={15} aria-hidden="true" />
+                      <span>正在识别食物并查询营养数据...</span>
+                    </div>
+                  )}
+                  {!isParsing && status && <p className="panel-status">{status}</p>}
+                  {parsedItems.length > 0 && (
+                    <>
+                      <ul className="food-results" role="list">
+                        {parsedItems.map((item, i) => (
+                          <li key={`${item.name}-${i}`} className="food-result-item">
+                            <div className="food-result-name">
+                              {item.name}
+                              <span className="food-result-brand"> · {item.quantity_description}</span>
+                              {item.source === 'estimated' && <span className="food-result-brand">（AI 估算）</span>}
+                            </div>
+                            <div className="food-result-macros">
+                              {Math.round(item.calories)} kcal · P {Math.round(item.protein_g)}g · C {Math.round(item.carbs_g)}g · F {Math.round(item.fat_g)}g
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      <button className="primary-submit" type="button" onClick={addParsedItems}>
+                        <CheckCircle2 size={17} aria-hidden="true" />
+                        全部添加到{mealLabels[activeMeal]}（{parsedItems.length} 项）
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
             </section>
           </div>{/* end toggle-hidden wrapper */}
         </div>
 
         {/* ── Right column: feedback ── */}
         <aside className="right-column">
-          <section className="insight-strip">
-            <div>
-              <Flame size={16} aria-hidden="true" />
-              <span>剩余 {Math.max(0, calorieGoal - totals.calories)} kcal</span>
-            </div>
-            <div>
-              <BarChart3 size={16} aria-hidden="true" />
-              <span>{streakInfo.hitDays}/7 天达标</span>
-            </div>
-          </section>
-
           <section className="trends-panel" aria-label="近7天热量趋势">
             <div className="section-title">
               <div className="section-icon"><BarChart3 size={18} aria-hidden="true" /></div>

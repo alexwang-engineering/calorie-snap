@@ -1,0 +1,42 @@
+[
+  {
+    "input": "I had two boiled eggs and a slice of white toast for breakfast",
+    "expected_calories_range": [180, 280],
+    "expected_item_count": 2
+  },
+  {
+    "input": "A medium banana and a cup of black coffee",
+    "expected_calories_range": [70, 150],
+    "expected_item_count": 2
+  },
+  {
+    "input": "Grilled chicken breast with a cup of white rice",
+    "expected_calories_range": [380, 600],
+    "expected_item_count": 2
+  },
+  {
+    "input": "One slice of pepperoni pizza",
+    "expected_calories_range": [220, 380],
+    "expected_item_count": 1
+  },
+  {
+    "input": "A bowl of cornflakes with milk",
+    "expected_calories_range": [140, 260],
+    "expected_item_count": 2
+  },
+  {
+    "input": "Two slices of white toast with peanut butter",
+    "expected_calories_range": [260, 430],
+    "expected_item_count": 2
+  },
+  {
+    "input": "A can of coke",
+    "expected_calories_range": [110, 160],
+    "expected_item_count": 1
+  },
+  {
+    "input": "A medium apple",
+    "expected_calories_range": [60, 130],
+    "expected_item_count": 1
+  }
+]
