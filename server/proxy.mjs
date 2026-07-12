@@ -28,6 +28,13 @@ for (const envPath of envCandidates) {
 const app = express()
 app.use(express.json({ limit: '10mb' }))
 
+// LAN mode (npm run proxy:lan): serve the built app + APIs to phones on the
+// same network. Default stays loopback-only.
+const LAN_MODE = process.env.CALORIE_SNAP_LAN === '1'
+if (LAN_MODE) {
+  app.use(express.static(resolve(__dirname, '..', 'dist')))
+}
+
 // The packaged Electron app calls from a file:// origin; the server is bound
 // to 127.0.0.1, so this only exposes it to local processes.
 app.use((req, res, next) => {
@@ -115,6 +122,6 @@ app.post('/api/parse-meal', async (req, res) => {
 })
 
 const PORT = 5174
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, LAN_MODE ? '0.0.0.0' : '127.0.0.1', () => {
   console.log(`Calorie Snap proxy running at http://127.0.0.1:${PORT}`)
 })

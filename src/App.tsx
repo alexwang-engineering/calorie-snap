@@ -38,9 +38,15 @@ import { ProgressRing } from './components/ProgressRing'
 
 const USDA_API_KEY = 'DEMO_KEY'
 
-// In dev, vite proxies /api → 127.0.0.1:5174. The packaged Electron app loads
-// from file://, so requests must target the locally spawned proxy directly.
-const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:5174' : ''
+// API base resolution:
+// 1. localStorage override (for native/phone builds when the server IP changes)
+// 2. VITE_API_BASE baked at build time (Capacitor builds)
+// 3. file:// → packaged Electron app, locally spawned proxy
+// 4. '' → dev (vite proxies /api) and LAN-served PWA (same origin as the proxy)
+const API_BASE =
+  localStorage.getItem('cs_api_base') ||
+  (import.meta.env.VITE_API_BASE as string | undefined) ||
+  (window.location.protocol === 'file:' ? 'http://127.0.0.1:5174' : '')
 
 type FoodResult = {
   fdcId: number

@@ -15,7 +15,8 @@
     "electron:build": "BUILD_TARGET=electron npm run build && electron-builder --mac",
     "ios": "npm run build && npx cap sync ios && npx cap open ios",
     "android": "npm run build && npx cap sync android && npx cap open android",
-    "cap:sync": "npm run build && npx cap sync"
+    "cap:sync": "npm run build && npx cap sync",
+    "proxy:lan": "npm run build && CALORIE_SNAP_LAN=1 node server/proxy.mjs"
   },
   "build": {
     "appId": "com.wjl.caloriesnap",
