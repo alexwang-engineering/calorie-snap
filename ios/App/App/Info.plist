@@ -47,5 +47,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描食品条码和拍摄食物照片以估算营养。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于连接你 Mac 上运行的 Calorie Snap AI 服务。</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Scoped exception: allow HTTP to LAN hosts only (the Mac-hosted AI proxy).
+		     Do NOT replace with NSAllowsArbitraryLoads. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

@@ -22,6 +22,12 @@ const SEX_OPTIONS: Array<{ value: Sex; label: string }> = [
   { value: 'female', label: '女' },
 ]
 
+// Native (Capacitor) builds talk to the Mac-hosted AI proxy over LAN; the
+// address is user-editable because the Mac's IP changes between networks.
+const isNativePlatform = Boolean(
+  (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.(),
+)
+
 export function ProfileSetup({ profile, onSave, onCancel }: ProfileSetupProps) {
   const isFirstRun = profile === null
 
@@ -32,6 +38,7 @@ export function ProfileSetup({ profile, onSave, onCancel }: ProfileSetupProps) {
   const [weightKg, setWeightKg] = useState(profile ? String(profile.weightKg) : '')
   const [activity, setActivity] = useState<ActivityLevel>(profile?.activity ?? 'light')
   const [goal, setGoal]         = useState<GoalType>(profile?.goal ?? 'maintain')
+  const [apiBase, setApiBase]   = useState(() => localStorage.getItem('cs_api_base') ?? '')
 
   const parsed = useMemo(() => {
     const ageNum    = Number(age)
@@ -56,6 +63,21 @@ export function ProfileSetup({ profile, onSave, onCancel }: ProfileSetupProps) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!parsed.valid) return
+    if (isNativePlatform) {
+      const previous = localStorage.getItem('cs_api_base') ?? ''
+      const next = apiBase.trim().replace(/\/+$/, '')
+      if (next) localStorage.setItem('cs_api_base', next)
+      else localStorage.removeItem('cs_api_base')
+      // API_BASE is resolved once at module load — apply the change via reload
+      if (next !== previous) {
+        onSave({
+          name: name.trim(), sex, age: parsed.ageNum, heightCm: parsed.heightNum,
+          weightKg: parsed.weightNum, activity, goal,
+        })
+        window.location.reload()
+        return
+      }
+    }
     onSave({
       name: name.trim(),
       sex,
@@ -163,6 +185,20 @@ export function ProfileSetup({ profile, onSave, onCancel }: ProfileSetupProps) {
             ))}
           </div>
         </div>
+
+        {isNativePlatform && (
+          <label className="profile-field">
+            AI 服务器地址（Mac 的局域网 IP）
+            <input
+              value={apiBase}
+              onChange={e => setApiBase(e.target.value)}
+              placeholder="例如：http://172.20.10.6:5174"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+          </label>
+        )}
 
         {previewGoals && (
           <div className="profile-preview" aria-live="polite">
