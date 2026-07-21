@@ -6,7 +6,7 @@ Calorie Snap is a mobile-first food and calorie tracker built in React, TypeScri
 
 Project path:
 
-`/Users/wjl/Github/calorie-snap`
+Repository root (`calorie-snap/`)
 
 Current local dev URL:
 
@@ -158,7 +158,7 @@ BarcodeDetector:
 
 ## Suggested Prompt For Another AI
 
-Continue work on `/Users/wjl/Github/calorie-snap`, a React TypeScript Vite app called Calorie Snap. Read `README.md`, `handoff.md`, `src/App.tsx`, `src/App.css`, and `src/index.css` first. Preserve the current mobile-first UI and localStorage behavior unless changing it intentionally. The app currently tracks meals, calories, macros, photos, and barcode lookup through Open Food Facts. Next useful improvements are durable image storage, USDA food search, native barcode fallback with ZXing, backend sync, and tests. Run `npm run lint` and `npm run build` before finishing.
+Continue work in this repository, a React TypeScript Vite app called Calorie Snap. Read `README.md`, `handoff.md`, `src/App.tsx`, `src/App.css`, and `src/index.css` first. Preserve the current mobile-first UI and localStorage behavior unless changing it intentionally. The app currently tracks meals, calories, macros, photos, and barcode lookup through Open Food Facts. Next useful improvements are durable image storage, USDA food search, native barcode fallback with ZXing, backend sync, and tests. Run `npm run lint` and `npm run build` before finishing.
 
 ## Current Status
 
