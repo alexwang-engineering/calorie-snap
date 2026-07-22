@@ -1,5 +1,6 @@
 # Calorie Snap
 
+![Status: Active Development](https://img.shields.io/badge/status-active_development-blue.svg)
 [![CI](https://github.com/alexwang-engineering/calorie-snap/actions/workflows/ci.yml/badge.svg)](https://github.com/alexwang-engineering/calorie-snap/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -96,3 +97,16 @@ dependency audit, lint and production-build checks on every push and pull
 request without requiring an API key. The prompt-evaluation harness
 (`npm run eval`) is a separate development benchmark described under
 [AI workflow](#ai-workflow) — it is not part of CI because it needs an API key.
+
+## Dependencies
+
+Direct dependencies use caret ranges. The one pinned override is `fast-uri`,
+forced to `^3.1.4` in `package.json` `overrides`: it arrives transitively
+through `electron-builder → ajv`, and versions `3.0.0–3.1.3` carry a
+high-severity advisory ([GHSA-v2hh-gcrm-f6hx](https://github.com/advisories/GHSA-v2hh-gcrm-f6hx)).
+The override keeps the high-severity `npm audit` in CI clean while staying inside
+`ajv`'s supported `^3` range.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
