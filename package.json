@@ -19,6 +19,9 @@
     "cap:sync": "npm run build && npx cap sync",
     "proxy:lan": "npm run build && CALORIE_SNAP_LAN=1 node server/proxy.mjs"
   },
+  "overrides": {
+    "fast-uri": "^3.1.4"
+  },
   "build": {
     "appId": "com.wjl.caloriesnap",
     "productName": "Calorie Snap",
