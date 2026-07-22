@@ -1,5 +1,8 @@
 # Calorie Snap
 
+[![CI](https://github.com/alexwang-engineering/calorie-snap/actions/workflows/ci.yml/badge.svg)](https://github.com/alexwang-engineering/calorie-snap/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 > 🚧 **Work in progress** — under active development, not medical or dietary
 > advice. See `handoff.md` for known limitations and next steps.
 
@@ -54,6 +57,31 @@ own `ANTHROPIC_API_KEY`, and run the local proxy in a second terminal:
 npm run proxy
 ```
 
+## Build & deploy
+
+The app builds to a single web bundle and reuses it across every platform
+target. All commands assume `npm install` has already run.
+
+| Target | Command | Output |
+|---|---|---|
+| Web / PWA | `npm run build` | `dist/` — static, installable bundle (via `vite-plugin-pwa`) |
+| macOS (Electron) | `npm run electron:build` | `dist-electron/` — signed-less `.dmg` for `arm64` and `x64` |
+| iOS (Capacitor) | `npm run ios` | Builds the web bundle, `cap sync ios`, then opens Xcode |
+| Android (Capacitor) | `npm run android` | Builds the web bundle, `cap sync android`, then opens Android Studio |
+
+- **Local Electron dev:** `npm run electron:dev` runs Vite and Electron together
+  with hot reload.
+- **Resync native shells after a web change:** `npm run cap:sync` rebuilds and
+  pushes the bundle into the iOS and Android projects without opening an IDE.
+- **AI features on native builds:** the natural-language parser calls the local
+  proxy, so a native build must be able to reach a running `npm run proxy`
+  instance. The proxy holds the `ANTHROPIC_API_KEY`; it is never bundled into
+  the client. `npm run proxy:lan` serves the proxy on the LAN for on-device
+  testing.
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the frontend, proxy
+and platform shells fit together.
+
 ## Verify
 
 ```bash
@@ -63,6 +91,8 @@ npm run lint
 npm run build
 ```
 
-The GitHub Actions workflow runs the same dependency audit, lint and
-production-build checks on every push and pull request without requiring an
-API key.
+The GitHub Actions workflow ([`ci.yml`](.github/workflows/ci.yml)) runs the same
+dependency audit, lint and production-build checks on every push and pull
+request without requiring an API key. The prompt-evaluation harness
+(`npm run eval`) is a separate development benchmark described under
+[AI workflow](#ai-workflow) — it is not part of CI because it needs an API key.
