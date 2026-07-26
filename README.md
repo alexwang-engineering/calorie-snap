@@ -100,12 +100,13 @@ request without requiring an API key. The prompt-evaluation harness
 
 ## Dependencies
 
-Direct dependencies use caret ranges. The one pinned override is `fast-uri`,
-forced to `^3.1.4` in `package.json` `overrides`: it arrives transitively
-through `electron-builder → ajv`, and versions `3.0.0–3.1.3` carry a
-high-severity advisory ([GHSA-v2hh-gcrm-f6hx](https://github.com/advisories/GHSA-v2hh-gcrm-f6hx)).
-The override keeps the high-severity `npm audit` in CI clean while staying inside
-`ajv`'s supported `^3` range.
+Direct dependencies use caret ranges. Three transitive security overrides are
+recorded in `package.json`: `fast-uri@^3.1.4`, `brace-expansion@5.0.8`, and
+`postcss@8.5.23`. `fast-uri` arrives through `electron-builder → ajv`;
+versions `3.0.0–3.1.3` carry a high-severity advisory
+([GHSA-v2hh-gcrm-f6hx](https://github.com/advisories/GHSA-v2hh-gcrm-f6hx)).
+The overrides keep the audited dependency tree on patched releases while
+upstream packages catch up.
 
 ## License
 
