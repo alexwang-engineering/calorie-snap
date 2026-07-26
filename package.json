@@ -20,7 +20,9 @@
     "proxy:lan": "npm run build && CALORIE_SNAP_LAN=1 node server/proxy.mjs"
   },
   "overrides": {
-    "fast-uri": "^3.1.4"
+    "brace-expansion": "5.0.8",
+    "fast-uri": "^3.1.4",
+    "postcss": "8.5.23"
   },
   "build": {
     "appId": "com.wjl.caloriesnap",
