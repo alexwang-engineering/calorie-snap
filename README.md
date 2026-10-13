@@ -100,9 +100,9 @@ request without requiring an API key. The prompt-evaluation harness
 
 ## Dependencies
 
-Direct dependencies use caret ranges. Three transitive security overrides are
-recorded in `package.json`: `fast-uri@^3.1.4`, `brace-expansion@5.0.8`, and
-`postcss@8.5.23`. `fast-uri` arrives through `electron-builder → ajv`;
+Direct dependencies use caret ranges. Four transitive security overrides are
+recorded in `package.json`: `@xmldom/xmldom@0.9.12` (via `@capacitor/cli →
+plist`), `fast-uri@^3.1.4`, `brace-expansion@5.0.12`, and `postcss@8.5.23`. `fast-uri` arrives through `electron-builder → ajv`;
 versions `3.0.0–3.1.3` carry a high-severity advisory
 ([GHSA-v2hh-gcrm-f6hx](https://github.com/advisories/GHSA-v2hh-gcrm-f6hx)).
 The overrides keep the audited dependency tree on patched releases while
